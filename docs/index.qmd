@@ -1,0 +1,13 @@
+---
+title: PycnoHeat
+format: html
+editor: visual
+---
+
+By Nikita Sridhar
+
+# Live experiment data
+
+Site for graphs of kelp analysis during experiment can be found here
+
+Site for graphs of temperatures of mixing/experimental tanks can be found here
