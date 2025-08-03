@@ -1,0 +1,11 @@
+---
+title: "live_temp"
+format: html
+---
+
+```{r}
+#pulling data from web ---------------------------------------------------------
+temp <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1hYKwyw7xpImw0UkSa-QuuZrkBy2YU88_AIKomJshBQA/edit?gid=1832909041#gid=1832909041",
+                                  "Kelp weight") 
+
+```
