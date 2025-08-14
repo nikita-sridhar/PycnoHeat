@@ -23,6 +23,8 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 library(tidyverse)
 library(here)
 library(googlesheets4)
+library(glmmTMB)
+
 ```
 
 ```{r}
@@ -72,4 +74,15 @@ ggplot(data = subset(kelp_processed, !is.na(pcnt_grazed)), aes(x = Temp_treatmen
   ylab("% Change Kelp Grazed") +
   labs(fill = "Pred treatment") + 
   facet_wrap(~ Trial)
+
+
+
+```
+
+Model: GLMM
+
+```{r}
+
+
+
 ```
