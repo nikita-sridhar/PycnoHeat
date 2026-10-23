@@ -1,4 +1,21 @@
 #analysis using ysi temps for experimental tanks instead of hobo
+#experimental tank YSI temps - loading ---------------------------------------------
+exp_temp_ysi <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/18vD4OGGKN3MY4Yx75_gLunwMmuHXkH9oBcuUNzi12KM/edit?gid=22340292#gid=22340292", 
+                                          "Experimental tanks") %>%
+  mutate(Time = ifelse(is.na(Time),"9:30:00 AM", Time),
+         date_time = ymd_hms(paste(Date, Time), tz = "America/Los_Angeles"))
+
+exp_temp_ysi_clean <- exp_temp_ysi %>%
+  #changing from wide to long format
+  pivot_longer(cols = c("Tank 1 temp (C)", "Tank 2 temp (C)","Tank 3 temp (C)",
+                        "Tank 4 temp (C)","Tank 5 temp (C)","Tank 6 temp (C)",
+                        "Tank 7 temp (C)","Tank 8 temp (C)","Tank 9 temp (C)"),
+               names_to = "tank",
+               values_to = "temp_c" ) %>%
+  mutate(tank = as.double(substr(tank, 6,6) ), #cleaning up so just says "Tank x"
+         tank = as.factor(tank)) %>% #needed as factor later for model
+  select(EF_Trial, Date, Time, date_time, tank,temp_c) %>%  
+  filter(!is.na(EF_Trial))  
 
 
 #temp ###########################################################################
@@ -73,15 +90,32 @@ kelp_wtemp <- kelp%>%
          #changing neg values to 0
          weight_diff = case_when(weight_diff <= 0 ~ 0, .default = weight_diff)) 
 
+kelp_wtemp <- exp_temp_hobo_clean %>%
+  full_join(kelp, join_by("tank" == "Tank",
+                          "Trial" == "Trial",
+                          "Pred_treatment" == "Pred_treatment",
+                          "Temp_treatment" == "Temp_treatment"),
+            relationship = "many-to-many") %>%
+  left_join(ramp_summary, by = c("Trial","Temp_treatment")) %>%
+  #some summary stats for kelp
+  mutate(weight_diff = Kelp_weight_before_g - Kelp_weight_after_g,
+         #changing neg values to 0
+         weight_diff = case_when(weight_diff <= 0 ~ 0.00001, .default = weight_diff),
+         Trial = as.factor(Trial),
+         Pred_treatment = as.factor(Pred_treatment)) %>%
+  group_by(Trial,tank) %>%
+  mutate(avg_weight_diff = mean(weight_diff),
+         sd_weight_diff = sd(weight_diff)) %>%
+  ungroup()
+
+
 #EXPLORATORY PLOTS #############################################################
 #temps per trial
 #trial 6 ribbon not showing bc only one temp recording for the trial
 
 ggplot(data = kelp_wtemp,
-       aes(x = Trial, y = mean_temp, color = Temp_treatment)) +
+       aes(x = Trial, y = temp_c, color = Temp_treatment)) +
   geom_point() +
-  geom_errorbar(aes(x = Trial, ymin = mean_temp - sd_temp, ymax = mean_temp + sd_temp),
-                size = 0.4, width = 0.2, alpha = 0.2) +
   geom_line()+
   labs(title = "Mean temperature per trial") +
   ylab("Mean temperature (C)") +
@@ -199,9 +233,9 @@ kelp_wtemp_forgamma <- kelp_wtemp %>%
 #model - kelp blade is level of replication
 mod1 <- glmmTMB::glmmTMB(weight_diff ~ 
                            
-                           Pred_treatment*mean_temp  + 
+                           Pred_treatment*temp_c  + trtmt_ramp_temp_change +
                            
-                           (1| Trial/Tank),  
+                           (1| Trial/tank),  
                          
                          data = kelp_wtemp_forgamma,
                          
