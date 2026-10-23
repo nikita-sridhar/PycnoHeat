@@ -29,10 +29,9 @@ kelp <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1hYKwy
   select(Trial, Kelp_ID,Tank,Pred_treatment,Temp_treatment,Kelp_weight_before_g,
          Kelp_weight_after_g)
 
-
-#experimental tank YSI temps - loading ---------------------------------------------
+#ysi exp
 exp_temp_ysi <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/18vD4OGGKN3MY4Yx75_gLunwMmuHXkH9oBcuUNzi12KM/edit?gid=22340292#gid=22340292", 
-                                      "Experimental tanks") %>%
+                                          "Experimental tanks") %>%
   mutate(Time = ifelse(is.na(Time),"9:30:00 AM", Time),
          date_time = ymd_hms(paste(Date, Time), tz = "America/Los_Angeles"))
 
@@ -49,28 +48,28 @@ exp_temp_ysi_clean <- exp_temp_ysi %>%
   filter(!is.na(EF_Trial))  
 
 
+
 #adding YSI ramping temperatures to the dataset ------------------------------------
 ramp_temp_ysi <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/18vD4OGGKN3MY4Yx75_gLunwMmuHXkH9oBcuUNzi12KM/edit?gid=22340292#gid=22340292", 
                                        "Ramping tanks")
 
-
 ramp_temp_clean <- ramp_temp_ysi %>%
   select(-"Observer", -"Time", -contains("DO"), -"Notes") %>%
-  rename(ramp_set1 = "R1-6 set",
-         ramp_set2 = "R7-12 set") %>%
   pivot_longer(cols = 4:15, #wide to long
                names_to = "tank_temp_id",
                values_to = "temp_c") %>%
   separate(col = tank_temp_id,#cleaning up tank and temp treatment cols
-           into = c("tank_id","temp_treatment"),
-           sep = "T") 
-  mutate(tank_id = substring(tank_id,2,),
+           into = c("ramping_tank_id","temp_treatment"),
+           sep = "T") %>%
+  mutate(ramping_tank_id = as.numeric(substring(ramping_tank_id,2,)),
          temp_treatment = paste0("T",(substring(temp_treatment,1,1))),
-         ramping_set = ifelse(tank_id >= 1 | tank_id <= 6, ramp_set1 , ramp_set2))
-
-,
-         ramping_set = substring(ramping_set,1,1)) %>%
-  na.omit()
+         ramping_set = str_sub(if_else(ramping_tank_id <= 6, `R1-6 set`, `R7-12 set`), 1, 1),
+         target_temp = str_extract(if_else(ramping_tank_id <= 6, 
+                                           `R1-6 set`, 
+                                           `R7-12 set`),
+                                   "(?<=\\().*?(?=\\))")) %>%
+ select(-`R1-6 set`,-`R7-12 set`) %>%
+ filter(!is.na(temp_c))
 
 #adding HOBO temp data ---------------------------------------------------------
 #note: hobos were only in experimental tanks
